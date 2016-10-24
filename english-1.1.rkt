@@ -52,17 +52,19 @@
 
 
 (define (recognize network tape)
-  (let ((x 0))
+  (let ((x 'start))
+
     (define (recognize-next node tape network)
       (if (and (empty? tape) (member node (final-nodes network)))
-          (set! x (+ x 1))
+          (set! x 'stop)
           (for ((transition (transitions network)))
-            #:break (= x 1) 
+            #:break (eq? x 'stop)
             (if (eq? node (trans-node transition))
                 (for ((newtape (recognize-move (trans-label transition) tape)))
-                  #:break (or (= x 1) (and (empty? newtape) (not (member (trans-newnode transition) (final-nodes network)))))
+                  #:break (or (eq? x 'stop) (and (empty? newtape) (not (member (trans-newnode transition) (final-nodes network)))))
                   (recognize-next (trans-newnode transition) newtape network))
                 false))))
+
     (define (recognize-move label tape)
       (if (or (eq? label (car tape))
               (member (car tape) (assoc label abbreviations)))
@@ -70,7 +72,8 @@
           (if (eq? label '|#|)
               (list tape)
               null)))
+
     (begin
       (for ((initialnode (initial-nodes network)))
         (recognize-next initialnode tape network))
-      (= x 1))))
+      (eq? x 'stop))))
