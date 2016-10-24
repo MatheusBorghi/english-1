@@ -1,0 +1,76 @@
+#lang racket
+(require racket/trace)
+(define english-1
+  '((Initial (1))
+    (Final (9))
+    (From 1 to 3 by NP)
+    (From 1 to 2 by DET)
+    (From 2 to 3 by N)
+    (From 3 to 4 by BV)
+    (From 4 to 5 by ADV)
+    (From 4 to 5 by |#|)
+    (From 5 to 6 by DET)
+    (From 5 to 7 by DET)
+    (From 5 to 8 by |#|)
+    (From 6 to 7 by ADJ)    
+    (From 6 to 6 by MOD)
+    (From 7 to 9 by N)
+    (From 8 to 8 by MOD)
+    (From 8 to 9 by ADJ)
+    (From 9 to 4 by CNJ)
+    (From 9 to 1 by CNJ)))
+
+(define (initial-nodes network)
+  (cadr (assoc 'Initial network)))
+
+(define (final-nodes network)
+  (cadr (assoc 'Final network)))
+
+(define (transitions network)
+  (cddr network))
+
+(define (trans-node transition)
+  (cadr transition))
+
+(define (trans-newnode transition)
+  (cadddr transition))
+
+(define (trans-label transition)
+  (last transition))
+
+(define abbreviations
+  '((NP kim sandy lee)
+    (DET a the her)
+    (N consumer man woman)
+    
+    (BV is was)
+    (CNJ and or)
+    (ADJ happy stupid)
+    (MOD very)
+    (ADV often always sometimes)
+    (|#|)))
+
+
+(define (recognize network tape)
+  (let ((x 0))
+    (define (recognize-next node tape network)
+      (if (and (empty? tape) (member node (final-nodes network)))
+          (set! x (+ x 1))
+          (for ((transition (transitions network)))
+            #:break (= x 1) 
+            (if (eq? node (trans-node transition))
+                (for ((newtape (recognize-move (trans-label transition) tape)))
+                  #:break (or (= x 1) (and (empty? newtape) (not (member (trans-newnode transition) (final-nodes network)))))
+                  (recognize-next (trans-newnode transition) newtape network))
+                false))))
+    (define (recognize-move label tape)
+      (if (or (eq? label (car tape))
+              (member (car tape) (assoc label abbreviations)))
+          (list (cdr tape))
+          (if (eq? label '|#|)
+              (list tape)
+              null)))
+    (begin
+      (for ((initialnode (initial-nodes network)))
+        (recognize-next initialnode tape network))
+      (= x 1))))
